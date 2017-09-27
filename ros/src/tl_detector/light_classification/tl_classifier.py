@@ -91,7 +91,6 @@ class TLClassifier(object):
 
                 rospy.loginfo('TL_CLassifier: {}'.format(class_name))
 
-                # Traffic light thing
                 self.current_light = TrafficLight.UNKNOWN
 
                 if class_name == 'Red':
@@ -101,18 +100,20 @@ class TLClassifier(object):
                 elif class_name == 'Yellow':
                     self.current_light = TrafficLight.YELLOW
 
-                # Credits: Anthony Sarkis
-                fx = 1345.200806
-                fy = 1353.838257
-                perceived_width_x = (boxes[i][3] - boxes[i][1]) * 800
-                perceived_width_y = (boxes[i][2] - boxes[i][0]) * 600
+                # # Credits: Anthony Sarkis
+                # fx = 1345.200806
+                # fy = 1353.838257
+                # perceived_width_x = (boxes[i][3] - boxes[i][1]) * 800
+                # perceived_width_y = (boxes[i][2] - boxes[i][0]) * 600
+                #
+                # # ymin, xmin, ymax, xmax = box
+                # # depth_prime = (width_real * focal) / perceived_width
+                # # traffic light is 4 feet long and 1 foot wide?
+                # perceived_depth_x = ((1 * fx) / perceived_width_x)
+                # perceived_depth_y = ((3 * fy) / perceived_width_y)
+                #
+                # estimated_distance = round((perceived_depth_x + perceived_depth_y) / 2)
+                #
+                self.image_np_deep = image
 
-                # ymin, xmin, ymax, xmax = box
-                # depth_prime = (width_real * focal) / perceived_width
-                # traffic light is 4 feet long and 1 foot wide?
-                perceived_depth_x = ((1 * fx) / perceived_width_x)
-                perceived_depth_y = ((3 * fy) / perceived_width_y)
-
-                estimated_distance = round((perceived_depth_x + perceived_depth_y) / 2)
-
-        return TrafficLight.UNKNOWN
+        return self.current_light
