@@ -62,7 +62,7 @@ class TLDetector(object):
         self.light_classifier = TLClassifier(sim = use_simulator_classifier)
         self.listener = tf.TransformListener()
 
-        self.pub1_deep_net_out = rospy.Publisher('/deep_net_out', Image, queue_size=1)
+        #self.pub1_deep_net_out = rospy.Publisher('/deep_net_out', Image, queue_size=1)
         self.TrafficLightState = rospy.Publisher('/traffic_light_state', Int32, queue_size=1)
 
         rospy.spin()
@@ -87,6 +87,8 @@ class TLDetector(object):
         self.has_image = True
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
+
+        rospy.loginfo('image_cb light_wp: {} | state : {}'.format(light_wp, Int32(state)))
 
         '''
         Publish upcoming red lights at camera frequency.
