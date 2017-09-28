@@ -58,7 +58,7 @@ class TLClassifier(object):
         self.detection_classes = self.detection_graph.get_tensor_by_name('detection_classes:0')
         self.num_detections = self.detection_graph.get_tensor_by_name('num_detections:0')
 
-        print("Loaded graph")
+        print("Loaded frozen model graph")
 
 
     def get_classification(self, image):
@@ -117,6 +117,7 @@ class TLClassifier(object):
         if (self.current_light == TrafficLight.UNKNOWN):
             class_name = 'UNKNOWN'
 
-        rospy.loginfo('TL_CLassifier: {}'.format(class_name))
+        # rospy.loginfo('TL_CLassifier:: {}'.format(class_name))
+        # rospy.loginfo('\n')
 
         return self.current_light
