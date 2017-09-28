@@ -71,6 +71,8 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+        self.current_light = TrafficLight.UNKNOWN
+
         image_expanded = np.expand_dims(image, axis=0)
         with self.detection_graph.as_default():
             (boxes, scores, classes, num) = self.sess.run(
@@ -88,10 +90,6 @@ class TLClassifier(object):
 
                 class_name = self.category_index[classes[i]]['name']
                 # class_id = self.category_index[classes[i]]['id']  # if needed
-
-                rospy.loginfo('TL_CLassifier: {}'.format(class_name))
-
-                self.current_light = TrafficLight.UNKNOWN
 
                 if class_name == 'Red':
                     self.current_light = TrafficLight.RED
@@ -115,5 +113,10 @@ class TLClassifier(object):
                 # estimated_distance = round((perceived_depth_x + perceived_depth_y) / 2)
                 #
                 self.image_np_deep = image
+
+        if (self.current_light == TrafficLight.UNKNOWN):
+            class_name = 'UNKNOWN'
+
+        rospy.loginfo('TL_CLassifier: {}'.format(class_name))
 
         return self.current_light
