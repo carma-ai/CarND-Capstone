@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
+from std_msgs.msg import Int32
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
 
@@ -36,9 +37,10 @@ class WaypointUpdater(object):
         rospy.init_node('waypoint_updater')
 
         # subscribe to all relevant topics
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
-        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb, queue_size=1)
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
+        self.sub_cur_pose = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
+        self.sub_cur_vel  = rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb, queue_size=1)
+        self.sub_base_wp  = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
+        self.sub_traffic_wp = rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb, queue_size=1)
         # TODO: Subscribe to /traffic_waypoint and /obstacle_waypoint
 
         # setup the publishers
@@ -116,7 +118,7 @@ class WaypointUpdater(object):
         if self.base_wp is None:
             pass
 
-        self.traffic_wp = msg
+        self.traffic_wp = msg.data
         if (self.traffic_wp + LOOKAHEAD_WPS) > len(self.base_wp):
             self.traffic_wp += len(self.base_wp)
 
