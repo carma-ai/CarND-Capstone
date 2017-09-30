@@ -116,6 +116,7 @@ class WaypointUpdater(object):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
         pass
 
+
     def __publish_waypoints(self, index, frame_id):
         # make list of n waypoints ahead of vehicle
         lookahead_waypoints = self.__get_next_waypoints(index, LOOKAHEAD_WPS)
@@ -143,6 +144,7 @@ class WaypointUpdater(object):
 
         # publish the subset of waypoints ahead
         self.pub_final_waypoints.publish(lane)
+        
 
     def __get_closest_waypoint(self):
         """
@@ -158,6 +160,7 @@ class WaypointUpdater(object):
 
             if gap < best_gap:
                 best_index, best_gap = i, gap
+
 
         if self.__is_waypoint_behind(self.base_wp[best_index]):
             best_index += 1
