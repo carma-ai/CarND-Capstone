@@ -12,7 +12,7 @@ import cv2
 import yaml
 import threading
 import math
-import numpy as np
+import time
 
 class TLDetector(object):
     def __init__(self):
@@ -87,10 +87,11 @@ class TLDetector(object):
         """
         self.has_image = True
         self.camera_image = msg
+        start_time = time.time()
         light_wp, state = self.process_traffic_lights()
         light_class = self.get_class_name(state)
 
-        rospy.loginfo('image_cb - light_wp:: {} | light_class:: {} | state :: {}'.format(light_wp, light_class, Int32(state)))
+        rospy.loginfo('image_cb - light_wp:: {} | light_class:: {} | state :: {} | time :: {}'.format(light_wp, light_class, Int32(state), (time.time() - start_time)))
         rospy.loginfo('\n')
 
         '''
