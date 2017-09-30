@@ -23,9 +23,10 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-
-LOOKAHEAD_WPS = 50  # number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 200  # number of waypoints we will publish. You can change this number
 MPH_TO_MPS = 0.44704  # simple conversion macro
+MAX_SPEED = 50.0 * MPH_TO_MPS
+NUM_SLOW_WPS = 50.0
 
 
 class WaypointUpdater(object):
@@ -44,10 +45,7 @@ class WaypointUpdater(object):
         # TODO: Subscribe to /traffic_waypoint and /obstacle_waypoint
 
         # setup the publishers
-        self.final_waypoints = rospy.Publisher('final_waypoints', Lane, queue_size=1)
-
-        # Log
-        rospy.logdebug('Initialized Waypoint updater')
+        self.pub_final_waypoints = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # initialize the globals
         self.time = None
@@ -55,7 +53,7 @@ class WaypointUpdater(object):
         self.lin_vel = 0.0
         self.ang_vel = 0.0
         self.base_wp = None
-        self.desired_vel = 20.0 # TODO: Set this dynamically based on traffic & object states
+        self.traffic_wp = -1
 
         # start a permanent spin
         rospy.spin()
@@ -68,29 +66,17 @@ class WaypointUpdater(object):
         :param msg: A PoseStamped object
         :return: None
         """
+        if self.base_wp is None:
+            pass
+
         self.time = msg.header.stamp
         self.pose = msg.pose
 
-        if self.base_wp is not None:
-            # get closest waypoint
-            index = self.__get_closest_waypoint()
+        # get closest waypoint
+        index = self.__get_closest_waypoint()
 
-            # make list of n waypoints ahead of vehicle
-            lookahead_waypoints = self.__get_next_waypoints(index, LOOKAHEAD_WPS)
-
-            # TODO: Update the desired final velocity based on the traffic & object locations
-
-            # set velocity of all waypoints
-            # TODO: Setup a spline from current velocity to desired velocity here
-            for waypoint in lookahead_waypoints:
-                waypoint.twist.twist.linear.x = self.desired_vel * MPH_TO_MPS
-
-            # make lane data structure to be published
-            lane = self.__make_lane(msg.header.frame_id, lookahead_waypoints)
-
-            # publish the subset of waypoints ahead
-            self.final_waypoints.publish(lane)
-
+        # Publish the new waypoints
+        self.__publish_waypoints(index, msg.header.frame_id)
 
     def waypoints_cb(self, msg):
         """
@@ -99,7 +85,11 @@ class WaypointUpdater(object):
         :param msg: A Lane object
         :return: None
         """
+        # Copy the waypoints
         self.base_wp = msg.waypoints
+
+        # Unsubscribe, since this is no longer requried
+        self.sub_base_wp.unregister()
 
 
     def velocity_cb(self, msg):
@@ -127,6 +117,35 @@ class WaypointUpdater(object):
         pass
 
 
+    def __publish_waypoints(self, index, frame_id):
+        # make list of n waypoints ahead of vehicle
+        lookahead_waypoints = self.__get_next_waypoints(index, LOOKAHEAD_WPS)
+        assert len(lookahead_waypoints) == LOOKAHEAD_WPS, 'Next waypoints error'
+
+        # set velocity of all waypoints
+        cnt = 1
+        diff = self.lin_vel / NUM_SLOW_WPS
+        for i, waypoint in enumerate(lookahead_waypoints):
+            # Compute the actual index of the waypoint
+            wp_idx = i + index
+
+            if self.traffic_wp == -1:
+                waypoint.twist.twist.linear.x = MAX_SPEED
+            elif wp_idx >= self.traffic_wp:
+                waypoint.twist.twist.linear.x = 0.0
+            elif wp_idx < self.traffic_wp - NUM_SLOW_WPS:
+                waypoint.twist.twist.linear.x = MAX_SPEED
+            else:
+                waypoint.twist.twist.linear.x = self.lin_vel - (diff * cnt)
+                cnt += 1
+
+        # make lane data structure to be published
+        lane = self.__make_lane(frame_id, lookahead_waypoints)
+
+        # publish the subset of waypoints ahead
+        self.pub_final_waypoints.publish(lane)
+        
+
     def __get_closest_waypoint(self):
         """
         :return: Returns the closest waypoint ahead of the car
@@ -143,8 +162,7 @@ class WaypointUpdater(object):
                 best_index, best_gap = i, gap
 
 
-        is_behind = self.__is_waypoint_behind(self.base_wp[best_index])
-        if is_behind:
+        if self.__is_waypoint_behind(self.base_wp[best_index]):
             best_index += 1
         return best_index
 
@@ -155,7 +173,7 @@ class WaypointUpdater(object):
         :param waypoint: The waypoint
         :return: True / False
         """
-
+        # Get the yaw from the quaternion
         _, _, yaw = euler_from_quaternion([self.pose.orientation.x,
                                            self.pose.orientation.y,
                                            self.pose.orientation.z,
@@ -180,8 +198,10 @@ class WaypointUpdater(object):
         :param n: The number of waypoints to get
         :return: A list of waypoints from base_wp
         """
-        m = min(len(self.base_wp), i + n)
-        return self.base_wp[i:m]
+        if (i + n < len(self.base_wp)):
+            return self.base_wp[i:(i + n)]
+        else:
+            return self.base_wp[i:] + self.base_wp[:(i + n) - len(self.base_wp)]
 
     @staticmethod
     def __make_lane(frame_id, waypoints):
