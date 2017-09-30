@@ -25,7 +25,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 
 LOOKAHEAD_WPS = 200  # number of waypoints we will publish. You can change this number
 MPH_TO_MPS = 0.44704  # simple conversion macro
-NUM_SLOW_WPS = 50.0
+NUM_SLOW_WPS = 100
 
 
 class WaypointUpdater(object):
@@ -56,6 +56,7 @@ class WaypointUpdater(object):
         self.lin_vel = 0.0
         self.ang_vel = 0.0
         self.base_wp = None
+        self.base_wp_len = None
         self.traffic_wp = -1
 
         # start a permanent spin
@@ -90,6 +91,7 @@ class WaypointUpdater(object):
         """
         # Copy the waypoints
         self.base_wp = msg.waypoints
+        self.base_wp_len = len(self.base_wp)
 
         # Unsubscribe, since this is no longer requried
         self.sub_base_wp.unregister()
@@ -112,42 +114,69 @@ class WaypointUpdater(object):
             pass
 
         self.traffic_wp = msg.data
-        if (self.traffic_wp + LOOKAHEAD_WPS) > len(self.base_wp):
-            self.traffic_wp += len(self.base_wp)
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
         pass
 
-
     def __publish_waypoints(self, index, frame_id):
+        # Preconditions
+        if self.traffic_wp != -1:
+            assert index < self.traffic_wp
+
         # make list of n waypoints ahead of vehicle
-        lookahead_waypoints = self.__get_next_waypoints(index, LOOKAHEAD_WPS)
-        assert len(lookahead_waypoints) == LOOKAHEAD_WPS, 'Next waypoints error'
+        new_wps = self.__get_next_waypoints(index, LOOKAHEAD_WPS)
+        assert len(new_wps) == LOOKAHEAD_WPS, 'Next waypoints error'
 
-        # set velocity of all waypoints
-        cnt = 1
-        diff = self.lin_vel / NUM_SLOW_WPS
-        for i, waypoint in enumerate(lookahead_waypoints):
-            # Compute the actual index of the waypoint
-            wp_idx = i + index
+        # Find the last index
+        last_index = index + LOOKAHEAD_WPS
 
-            if self.traffic_wp == -1:
-                waypoint.twist.twist.linear.x = self.max_speed
-            elif wp_idx >= self.traffic_wp:
-                waypoint.twist.twist.linear.x = 0.0
-            elif wp_idx < self.traffic_wp - NUM_SLOW_WPS:
-                waypoint.twist.twist.linear.x = self.max_speed
-            else:
-                waypoint.twist.twist.linear.x = self.lin_vel - (diff * cnt)
-                cnt += 1
+        # Traffic waypoint is not set or is too far away
+        if (self.traffic_wp == -1) or (self.traffic_wp > (last_index % self.base_wp_len)):
+            self.__set_all_wp(new_wps, self.max_speed)
+
+        # Traffic waypoint is set
+        else:
+            diff = self.max_speed / float(NUM_SLOW_WPS)
+
+            # For all the points beyond the traffic waypoint, set it to 0.
+            for i in range(self.traffic_wp, last_index):
+                new_wps[i - index].twist.twist.linear.x = 0
+
+            # For all the points before the slow down, set it to max
+            for i in range(index, (self.traffic_wp - NUM_SLOW_WPS)):
+                new_wps[i - index].twist.twist.linear.x = self.max_speed
+
+            # For all the points from slow down to the traffic waypoint,
+            # set the value as it's required value
+            for i in range((self.traffic_wp - NUM_SLOW_WPS), self.traffic_wp):
+                if i >= index:
+                    new_wps[i - index].twist.twist.linear.x = (self.traffic_wp - i - 1) * diff
+
+        rospy.loginfo('{} :: {} - {} - {}'.format((self.traffic_wp - index),
+                                                  new_wps[0].twist.twist.linear.x,
+                                                  new_wps[LOOKAHEAD_WPS//2].twist.twist.linear.x,
+                                                  new_wps[-1].twist.twist.linear.x))
 
         # make lane data structure to be published
-        lane = self.__make_lane(frame_id, lookahead_waypoints)
+        lane = self.__make_lane(frame_id, new_wps)
 
         # publish the subset of waypoints ahead
         self.pub_final_waypoints.publish(lane)
         
+
+    @staticmethod
+    def __set_all_wp(wps, vel):
+        """
+        Sets a constant velocity to all waypoints
+
+        :param wps: A list of waypoints
+        :param vel: The velocity to be set
+        :return: None
+        """
+        for wp in wps:
+            wp.twist.twist.linear.x = vel
+
 
     def __get_closest_waypoint(self):
         """
