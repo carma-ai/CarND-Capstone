@@ -25,7 +25,6 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 
 LOOKAHEAD_WPS = 200  # number of waypoints we will publish. You can change this number
 MPH_TO_MPS = 0.44704  # simple conversion macro
-MAX_SPEED = 50.0 * MPH_TO_MPS
 NUM_SLOW_WPS = 50.0
 
 
@@ -36,6 +35,10 @@ class WaypointUpdater(object):
         """
         # initialize the node with ROS
         rospy.init_node('waypoint_updater')
+
+        # Get the maximum speed
+        self.max_speed = rospy.get_param('~max_speed') * MPH_TO_MPS
+        assert self.max_speed is not None
 
         # subscribe to all relevant topics
         self.sub_cur_pose = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
@@ -130,11 +133,11 @@ class WaypointUpdater(object):
             wp_idx = i + index
 
             if self.traffic_wp == -1:
-                waypoint.twist.twist.linear.x = MAX_SPEED
+                waypoint.twist.twist.linear.x = self.max_speed
             elif wp_idx >= self.traffic_wp:
                 waypoint.twist.twist.linear.x = 0.0
             elif wp_idx < self.traffic_wp - NUM_SLOW_WPS:
-                waypoint.twist.twist.linear.x = MAX_SPEED
+                waypoint.twist.twist.linear.x = self.max_speed
             else:
                 waypoint.twist.twist.linear.x = self.lin_vel - (diff * cnt)
                 cnt += 1
