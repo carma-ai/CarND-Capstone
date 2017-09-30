@@ -5,3 +5,5 @@ build
 devel
 
 profile.tmp
+*.pbtxt
+*model/
