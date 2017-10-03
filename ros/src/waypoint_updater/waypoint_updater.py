@@ -120,10 +120,6 @@ class WaypointUpdater(object):
         pass
 
     def __publish_waypoints(self, index, frame_id):
-        # Preconditions
-        if self.traffic_wp != -1:
-            assert index < self.traffic_wp
-
         # make list of n waypoints ahead of vehicle
         new_wps = self.__get_next_waypoints(index, LOOKAHEAD_WPS)
         assert len(new_wps) == LOOKAHEAD_WPS, 'Next waypoints error'
@@ -132,7 +128,7 @@ class WaypointUpdater(object):
         last_index = index + LOOKAHEAD_WPS
 
         # Traffic waypoint is not set or is too far away
-        if (self.traffic_wp == -1) or (self.traffic_wp > (last_index % self.base_wp_len)):
+        if (self.traffic_wp == -1) or (self.traffic_wp > (last_index % self.base_wp_len)) or (index > self.traffic_wp):
             self.__set_all_wp(new_wps, self.max_speed)
 
         # Traffic waypoint is set

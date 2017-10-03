@@ -24,7 +24,7 @@ class Controller(object):
             brake_params['min'],
             brake_params['max'])
         self.steer_ctrl = YawController(wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle)
-        self.steer_filt = LowPassFilter(0.5, 0.5)
+        self.steer_filt = LowPassFilter(1.0, 0.0)
         self.prev_steer = 0.0
 
     def control(self, sample_time, exp_lin_vel, act_lin_vel, exp_ang_vel):
@@ -39,7 +39,7 @@ class Controller(object):
             brake = 0.0
 
         # Compute the steering
-        steering = self.steer_filt.filt(self.steer_ctrl.get_steering(exp_lin_vel, exp_ang_vel, act_lin_vel))
+        steering = self.steer_filt.filt(self.steer_ctrl.get_steering(exp_lin_vel, exp_ang_vel, act_lin_vel)) * 2.0
 
         # If there is too much of a difference in the steering angles
         # if (self.prev_steer - steering) > 1e-1:
