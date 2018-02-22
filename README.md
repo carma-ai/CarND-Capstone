@@ -4,7 +4,7 @@
 
 **Members:**
 
-* Keerthi Kiran (kerrthi2kiran@yahoo.com)
+* Keerthi Kiran (keerthi2kiran@yahoo.com)
 * Mohan Karthik (nemesis.nitt@gmail.com)
 * Niju Nicholas (niju.nicholas@gmail.com)
 * Sumit Binnani (sumit.binnani@gmail.com)
